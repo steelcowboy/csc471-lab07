@@ -1,6 +1,8 @@
+import os
+
 def FlagsForFile( filename, **kwargs ):
-  return {
-    'flags': [ '-I', '/home/steelcowboy/programming/csc471/lab06/ext',
-        '-I', '/home/steelcowboy/programming/csc471/lab06/ext/glad/include',
+    lab_path = os.path.dirname(os.path.realpath(__file__))
+    return {
+    'flags': [ '-I', f'{lab_path}/ext', '-I', f'{lab_path}/ext/glad/include',
         '-std=c++0x', '-Wall',  '-pedantic' ],
-  }
+    }
