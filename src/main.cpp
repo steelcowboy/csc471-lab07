@@ -24,7 +24,10 @@ class Application : public EventCallbacks
         WindowManager * windowManager = nullptr;
 
         // Our shader program
-        std::shared_ptr<Program> prog;
+        std::shared_ptr<Program> rot_light;
+        
+        // Our shader program
+        std::shared_ptr<Program> fixed_light;
 
         // Shape to be used (from obj file)
         shared_ptr<Shape> shape;
@@ -35,32 +38,16 @@ class Application : public EventCallbacks
         // Data necessary to give our triangle to OpenGL
         GLuint VertexBufferID;
 
-        float upperarm_rot;
-        float forearm_rot;
-        float hand_rot;
-        float tmp;
+        static const int zBack = -5;
+        static const int xMov = 2;
 
-        float x_disp = 0;
-        bool rot_arm = false;
+        float y_rot = 0;
 
         void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
         {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
             {
                 glfwSetWindowShouldClose(window, GL_TRUE);
-            }
-            else if ( (key == GLFW_KEY_J || key == GLFW_KEY_N || key == GLFW_KEY_A) && action == GLFW_PRESS)
-            {
-                x_disp -= 0.1; 
-            }
-            // Right 
-            else if ( (key == GLFW_KEY_SEMICOLON || key == GLFW_KEY_O || key == GLFW_KEY_D) && action == GLFW_PRESS)
-            {
-                x_disp += 0.1; 
-            }
-            else if (key == GLFW_KEY_C && action == GLFW_PRESS)
-            {
-                rot_arm = !rot_arm;
             }
         }
 
@@ -85,31 +72,43 @@ class Application : public EventCallbacks
             GLSL::checkVersion();
 
             // Set background color.
-            glClearColor(.12f, .34f, .56f, 1.0f);
+            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
             // Enable z-buffer test.
             glEnable(GL_DEPTH_TEST);
 
-            upperarm_rot = 0;
-            forearm_rot = 0;
-            tmp = 0;
-
             // Initialize the GLSL program.
-            prog = make_shared<Program>();
-            prog->setVerbose(true);
-            prog->setShaderNames(resourceDirectory + "/simple_vert.glsl", resourceDirectory + "/simple_frag.glsl");
-            prog->init();
-            prog->addUniform("P");
-            prog->addUniform("V");
-            prog->addUniform("M");
-            prog->addAttribute("vertPos");
-            prog->addAttribute("vertNor");
+            rot_light = make_shared<Program>();
+            rot_light->setVerbose(true);
+            rot_light->setShaderNames(resourceDirectory + "/rot_vert.glsl", resourceDirectory + "/rot_frag.glsl");
+            if (rot_light->init()) {
+                //exit(1);
+            }
+            rot_light->addUniform("P");
+            rot_light->addUniform("V");
+            rot_light->addUniform("M");
+            rot_light->addAttribute("vertPos");
+            rot_light->addAttribute("vertNor");
+            
+            // Initialize the GLSL program.
+            fixed_light = make_shared<Program>();
+            fixed_light->setVerbose(true);
+            fixed_light->setShaderNames(resourceDirectory + "/fixed_vert.glsl", resourceDirectory + "/fixed_frag.glsl");
+            if (fixed_light->init()) {
+                //exit(1);
+            }
+            fixed_light->addUniform("P");
+            fixed_light->addUniform("V");
+            fixed_light->addUniform("M");
+            fixed_light->addAttribute("vertPos");
+            fixed_light->addAttribute("vertNor");
         }
 
         void initGeom(const std::string& resourceDirectory)
         {
             // Initialize mesh.
             shape = make_shared<Shape>();
-            shape->loadMesh(resourceDirectory + "/cube.obj");
+            //shape->loadMesh(resourceDirectory + "/cube.obj");
+            shape->loadMesh(resourceDirectory + "/sphere.obj");
             shape->resize();
             shape->init();
         }
@@ -132,9 +131,6 @@ class Application : public EventCallbacks
             auto View = make_shared<MatrixStack>();
             auto Model = make_shared<MatrixStack>();
 
-            const static float shoulder_x = 1.0;
-            const static float shoulder_disp = 1;
-
             // Apply perspective projection.
             Projection->pushMatrix();
             Projection->perspective(45.0f, aspect, 0.01f, 100.0f);
@@ -142,115 +138,43 @@ class Application : public EventCallbacks
             // View is identity - for now
             View->pushMatrix();
 
-            // Draw a stack of cubes with indiviudal transforms
-            prog->bind();
-            glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
-            glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+            rot_light->bind();
+            glUniformMatrix4fv(rot_light->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+            glUniformMatrix4fv(rot_light->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
 
-            // draw bottom cube
+            // draw sphere 
             Model->pushMatrix();
             {
-                Model->loadIdentity();
-                // draw the bottom cube with these 'global transforms'
-                Model->translate(vec3(x_disp, 0, -5));
-                Model->scale(vec3(0.6, 0.6, 0.6));
-                glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-                shape->draw(prog);
-                
-                // draw the bottom cubes 'arm' - relative to the position of the bottom cube
-                // note you must change this to TWO jointed arm with hand
-                Model->pushMatrix();
-                {
-                    // place at shoulder
-                    Model->translate(vec3(shoulder_disp - 0.1, shoulder_disp, 0));
-                    // rotate shoulder joint
-                    Model->rotate(upperarm_rot, vec3(0, 0, 1));
-                    // move to shoulder joint
-                    Model->translate(vec3(shoulder_x, 0, 0));
-                    
-                    // Forearm
-                    Model->pushMatrix();
-                    {
-                        Model->translate(vec3(0.9, 0, 0));
-                        Model->rotate(forearm_rot, vec3(0, 0, 1));
-                        Model->translate(vec3(0.4, 0, 0));
-
-                        // Hand
-                        Model->pushMatrix();
-                        {
-                            Model->translate(vec3(0.8, 0.0, 0));
-                            Model->rotate(hand_rot, vec3(0, 0, 1));
-                            Model->scale(0.25);
-                            glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-                            shape->draw(prog);
-                        }
-                        Model->popMatrix();
-
-                        Model->scale(vec3(0.5, 0.25, 0.25));
-                        glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-                        shape->draw(prog);
-                    }
-                    Model->popMatrix();
-
-                    // non-uniform scale
-                    Model->scale(vec3(0.95, 0.25, 0.25));
-                    glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-                    shape->draw(prog);
-                }
-                Model->popMatrix();
-
-                // Left arm
-                Model->pushMatrix();
-                {
-                    // place at shoulder
-                    Model->translate(vec3(-shoulder_disp - 0.2, shoulder_disp - 0.3, 0));
-                    // rotate shoulder joint
-                    Model->rotate(4.2, vec3(0, 0, 1));
-                    // move to shoulder joint
-                    Model->translate(vec3(shoulder_disp, 0, 0));
-                    // non-uniform scale
-                    Model->scale(vec3(1.5, 0.25, 0.25));
-                    glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-                    shape->draw(prog);
-                }
-                Model->popMatrix();
-
-                // draw top cube - aka head
-                Model->pushMatrix();
-                {
-                    Model->loadIdentity();
-                    // play with these options
-                    Model->translate(vec3(x_disp, 1.1, -5));
-                    Model->rotate(0.5, vec3(0, 1, 0));
-                    Model->scale(vec3(0.4, 0.4, 0.4));
-                    glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
-                    shape->draw(prog);
-                }
-                Model->popMatrix();
+                Model->translate(vec3(xMov, 0, zBack));
+                Model->rotate(y_rot, vec3(0, 1, 0));
+                glUniformMatrix4fv(rot_light->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
+                shape->draw(rot_light);
             }
             Model->popMatrix();
 
-            prog->unbind();
+            rot_light->unbind();
+            fixed_light->bind();
+            glUniformMatrix4fv(fixed_light->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
+            glUniformMatrix4fv(fixed_light->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+
+            // draw sphere 
+            Model->pushMatrix();
+            {
+                Model->translate(vec3(-xMov, 0, zBack));
+                Model->rotate(y_rot, vec3(0, 1, 0));
+                glUniformMatrix4fv(fixed_light->getUniform("M"), 1, GL_FALSE, value_ptr(Model->topMatrix()));
+                shape->draw(fixed_light);
+            }
+            Model->popMatrix();
+
+            fixed_light->unbind();
 
             // Pop matrix stacks.
             Projection->popMatrix();
             View->popMatrix();
 
-            auto extract_sign = [](int a) { return a > 0 ? 1: -1; };
-
-            upperarm_rot = 1.4*sin(glfwGetTime());
-            if (std::abs(upperarm_rot) > 1)
-            {
-                upperarm_rot = extract_sign(upperarm_rot);
-            }
-
-            if (rot_arm)
-            {
-                forearm_rot = 0.5*sin(glfwGetTime());
-            }
-            hand_rot = 0.1*sin(glfwGetTime());
-            
-
+            y_rot += 0.01;
+            //std::cout << y_rot << std::endl;
         }
 };
 
