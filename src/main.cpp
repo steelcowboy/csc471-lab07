@@ -42,12 +42,19 @@ class Application : public EventCallbacks
         static const int xMov = 2;
 
         float y_rot = 0;
+        int style = 0;
 
         void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods)
         {
-            if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-            {
-                glfwSetWindowShouldClose(window, GL_TRUE);
+            if (action == GLFW_PRESS) {
+                switch (key) {
+                    case GLFW_KEY_ESCAPE:
+                        glfwSetWindowShouldClose(window, GL_TRUE);
+                        break;
+                    case GLFW_KEY_A:
+                        style = (style == 1) ? 0:1;
+                        break;
+                }
             }
         }
 
@@ -86,6 +93,7 @@ class Application : public EventCallbacks
             rot_light->addUniform("P");
             rot_light->addUniform("V");
             rot_light->addUniform("M");
+            rot_light->addUniform("uStyle");
             rot_light->addAttribute("vertPos");
             rot_light->addAttribute("vertNor");
             
@@ -99,6 +107,7 @@ class Application : public EventCallbacks
             fixed_light->addUniform("P");
             fixed_light->addUniform("V");
             fixed_light->addUniform("M");
+            fixed_light->addUniform("uStyle");
             fixed_light->addAttribute("vertPos");
             fixed_light->addAttribute("vertNor");
         }
@@ -141,6 +150,7 @@ class Application : public EventCallbacks
             rot_light->bind();
             glUniformMatrix4fv(rot_light->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
             glUniformMatrix4fv(rot_light->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+            glUniform1i(rot_light->getUniform("uStyle"), style);
 
             // draw sphere 
             Model->pushMatrix();
@@ -156,6 +166,7 @@ class Application : public EventCallbacks
             fixed_light->bind();
             glUniformMatrix4fv(fixed_light->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
             glUniformMatrix4fv(fixed_light->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
+            glUniform1i(fixed_light->getUniform("uStyle"), style);
 
             // draw sphere 
             Model->pushMatrix();
