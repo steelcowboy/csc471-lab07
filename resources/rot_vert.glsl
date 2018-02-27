@@ -20,7 +20,7 @@ void main()
 
         vec3 light_vec = normalize(uLight);
         float diffuse = max(dot(normalize(updatedNor), light_vec), 0);
-        fragColor = base_color * diffuse + 0.2*base_color;
+        fragColor = base_color * diffuse + 0.4*base_color;
     }
     else
     {
