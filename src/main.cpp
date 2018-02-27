@@ -94,6 +94,7 @@ class Application : public EventCallbacks
             rot_light->addUniform("V");
             rot_light->addUniform("M");
             rot_light->addUniform("uStyle");
+            rot_light->addUniform("uLight");
             rot_light->addAttribute("vertPos");
             rot_light->addAttribute("vertNor");
             
@@ -108,6 +109,7 @@ class Application : public EventCallbacks
             fixed_light->addUniform("V");
             fixed_light->addUniform("M");
             fixed_light->addUniform("uStyle");
+            fixed_light->addUniform("uLight");
             fixed_light->addAttribute("vertPos");
             fixed_light->addAttribute("vertNor");
         }
@@ -151,6 +153,7 @@ class Application : public EventCallbacks
             glUniformMatrix4fv(rot_light->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
             glUniformMatrix4fv(rot_light->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
             glUniform1i(rot_light->getUniform("uStyle"), style);
+            glUniform3f(rot_light->getUniform("uLight"), 1, 1, 2);
 
             // draw sphere 
             Model->pushMatrix();
@@ -167,6 +170,7 @@ class Application : public EventCallbacks
             glUniformMatrix4fv(fixed_light->getUniform("P"), 1, GL_FALSE, value_ptr(Projection->topMatrix()));
             glUniformMatrix4fv(fixed_light->getUniform("V"), 1, GL_FALSE, value_ptr(View->topMatrix()));
             glUniform1i(fixed_light->getUniform("uStyle"), style);
+            glUniform3f(fixed_light->getUniform("uLight"), -1, -1, 2);
 
             // draw sphere 
             Model->pushMatrix();
